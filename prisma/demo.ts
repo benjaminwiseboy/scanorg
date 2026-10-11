@@ -6,13 +6,14 @@
 // demo-credentials.md (ignoré par Git).
 import "dotenv/config";
 import { randomBytes, randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { chmodSync, writeFileSync } from "node:fs";
 import { hashPassword } from "better-auth/crypto";
 import { db } from "../src/lib/prisma";
 import { finalize, type Respondent } from "../src/engines/finalize";
 import { DIMENSIONS, METHODOLOGY_CODE, QUESTIONS } from "../src/engines/methodology/lf-eac-v1";
 
-const DOMAIN = "demo.scanorg.test";
+const DOMAIN = "demo.scanorg.test"; // inscription bloquée sur ce domaine (src/lib/auth.ts)
+const CREDENTIALS_FILE = "demo-credentials.md";
 const args = process.argv.slice(2);
 const baseUrl = (args.find((a) => a.startsWith("--base-url="))?.split("=")[1] ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
@@ -176,8 +177,10 @@ async function main() {
     ...openLinks.map((t, i) => `${i + 1}. ${baseUrl}/scan/${t}`),
     "",
   ].join("\n");
-  writeFileSync("demo-credentials.md", md);
-  console.log("\n" + md);
+  // Lisible par le seul propriétaire ; les mots de passe ne passent pas par les logs.
+  writeFileSync(CREDENTIALS_FILE, md, { mode: 0o600 });
+  chmodSync(CREDENTIALS_FILE, 0o600); // si le fichier existait déjà
+  console.log(`\n${credentials.length} comptes créés. Identifiants et liens : ${CREDENTIALS_FILE}`);
 }
 
 main()
