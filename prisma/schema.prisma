@@ -1,0 +1,253 @@
+// ScanORG™ pilote — modèle de données (sous-ensemble du Build Pack V4, partie 03).
+// Tables Better Auth (user/session/account/verification) + domaine ScanORG.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Identity (Better Auth) ────────────────────────────────────────────────
+
+model User {
+  id            String       @id
+  name          String
+  email         String       @unique
+  emailVerified Boolean      @default(false)
+  image         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  memberships   Membership[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Organization ──────────────────────────────────────────────────────────
+
+enum OrgRole {
+  ADMIN_ORG
+  PRACTITIONER
+}
+
+model Organization {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+  campaigns   Campaign[]
+  auditEvents AuditEvent[]
+
+  @@map("organization")
+}
+
+model Membership {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           OrgRole
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("membership")
+}
+
+// ─── Methodology (versionnée, immuable une fois publiée) ──────────────────
+
+model MethodologyVersion {
+  id         String      @id @default(uuid()) @db.Uuid
+  code       String      @unique // ex. "LF-EAC-V1"
+  createdAt  DateTime    @default(now())
+  dimensions Dimension[]
+  questions  Question[]
+  campaigns  Campaign[]
+
+  @@map("methodology_version")
+}
+
+model Dimension {
+  id                   String             @id @default(uuid()) @db.Uuid
+  methodologyVersionId String             @db.Uuid
+  methodologyVersion   MethodologyVersion @relation(fields: [methodologyVersionId], references: [id])
+  code                 String // E1..C3
+  pillar               String // E | A | C
+  name                 String
+  questions            Question[]
+
+  @@unique([methodologyVersionId, code])
+  @@map("dimension")
+}
+
+model Question {
+  id                   String             @id @default(uuid()) @db.Uuid
+  methodologyVersionId String             @db.Uuid
+  methodologyVersion   MethodologyVersion @relation(fields: [methodologyVersionId], references: [id])
+  dimensionId          String             @db.Uuid
+  dimension            Dimension          @relation(fields: [dimensionId], references: [id])
+  number               Int // 1..42
+  text                 String
+  responses            Response[]
+
+  @@unique([methodologyVersionId, number])
+  @@map("question")
+}
+
+// ─── Campaign / Scanner ────────────────────────────────────────────────────
+
+enum CampaignStatus {
+  DRAFT
+  OPEN
+  CLOSED // fermée, analyse non publiée (ex. échec moteur)
+  PUBLISHED
+}
+
+model Campaign {
+  id                   String             @id @default(uuid()) @db.Uuid
+  organizationId       String             @db.Uuid
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  methodologyVersionId String             @db.Uuid
+  methodologyVersion   MethodologyVersion @relation(fields: [methodologyVersionId], references: [id])
+  name                 String
+  status               CampaignStatus     @default(DRAFT)
+  launchedAt           DateTime?
+  closedAt             DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  participants         Participant[]
+  snapshot             AnalysisSnapshot?
+
+  @@index([organizationId])
+  @@map("campaign")
+}
+
+enum ParticipantStatus {
+  INVITED
+  IN_PROGRESS
+  SUBMITTED
+}
+
+// Lien de participation non nominatif : aucune identité n'est stockée.
+model Participant {
+  id          String            @id @default(uuid()) @db.Uuid
+  campaignId  String            @db.Uuid
+  campaign    Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  token       String            @unique
+  status      ParticipantStatus @default(INVITED)
+  submittedAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  responses   Response[]
+
+  @@index([campaignId])
+  @@map("participant")
+}
+
+// Contrainte CHECK (value XOR notApplicable) ajoutée en SQL dans la migration.
+model Response {
+  id            String      @id @default(uuid()) @db.Uuid
+  participantId String      @db.Uuid
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  questionId    String      @db.Uuid
+  question      Question    @relation(fields: [questionId], references: [id])
+  value         Int?
+  notApplicable Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([participantId, questionId])
+  @@index([questionId])
+  @@map("response")
+}
+
+// ─── Analytics (snapshot immuable) ─────────────────────────────────────────
+
+enum SnapshotStatus {
+  PUBLISHED
+  BLOCKED // confidentialité : résultat non publiable
+}
+
+model AnalysisSnapshot {
+  id                 String         @id @default(uuid()) @db.Uuid
+  campaignId         String         @unique @db.Uuid
+  campaign           Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  status             SnapshotStatus
+  methodologyVersion String
+  engineVersion      String
+  calculatedAt       DateTime
+  payload            Json // carte + qualité + confidentialité + limites
+  createdAt          DateTime       @default(now())
+
+  @@map("analysis_snapshot")
+}
+
+// ─── Audit ─────────────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String?       @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actorId        String? // null pour un participant (non nominatif)
+  type           String
+  entityType     String
+  entityId       String
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
+  @@map("audit_event")
+}
