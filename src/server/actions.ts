@@ -7,6 +7,9 @@ import { z } from "zod";
 import { db } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
 import { requireCampaign, requireMembership, requireUser } from "./authz";
+
+// Écrans C (campagne) : réservés à l'Admin Org (Build Pack V4, partie 04).
+const ADMIN = { role: "ADMIN_ORG" } as const;
 import { finalize, type Respondent } from "@/engines/finalize";
 import { METHODOLOGY_CODE } from "@/engines/methodology/lf-eac-v1";
 
@@ -49,7 +52,7 @@ export async function createCampaign(_: ActionState, form: FormData): Promise<Ac
 }
 
 export async function generateLinks(campaignId: string, _: ActionState, form: FormData): Promise<ActionState> {
-  const { user, campaign } = await requireCampaign(campaignId);
+  const { user, campaign } = await requireCampaign(campaignId, ADMIN);
   if (campaign.status !== "DRAFT" && campaign.status !== "OPEN") return { error: "La campagne est fermée." };
   const n = z.coerce.number().int().min(1).max(200).safeParse(form.get("count"));
   if (!n.success) return { error: "Entre 1 et 200 liens par lot." };
@@ -68,7 +71,7 @@ export async function generateLinks(campaignId: string, _: ActionState, form: Fo
 }
 
 export async function launchCampaign(campaignId: string): Promise<ActionState> {
-  const { user, campaign } = await requireCampaign(campaignId);
+  const { user, campaign } = await requireCampaign(campaignId, ADMIN);
   if (campaign.status !== "DRAFT") return { error: "Seule une campagne en brouillon peut être lancée." };
   const count = await db().participant.count({ where: { campaignId } });
   if (count === 0) return { error: "Générez au moins un lien de participation avant de lancer." };
@@ -86,7 +89,7 @@ export async function launchCampaign(campaignId: string): Promise<ActionState> {
  * moteur laisse la campagne CLOSED sans snapshot : aucune conclusion partielle.
  */
 export async function closeAndFinalize(campaignId: string): Promise<ActionState> {
-  const { user, campaign } = await requireCampaign(campaignId);
+  const { user, campaign } = await requireCampaign(campaignId, ADMIN);
   if (campaign.status !== "OPEN" && campaign.status !== "CLOSED") return { error: "Campagne non finalisable dans cet état." };
   if (await db().analysisSnapshot.findUnique({ where: { campaignId } })) return { error: "Une analyse existe déjà pour cette campagne." };
 
@@ -156,7 +159,7 @@ export async function closeAndFinalize(campaignId: string): Promise<ActionState>
 
 /** Rouvre une campagne fermée non publiée (ex. bloquée pour < 5 répondants). */
 export async function reopenCampaign(campaignId: string): Promise<ActionState> {
-  const { user, campaign } = await requireCampaign(campaignId);
+  const { user, campaign } = await requireCampaign(campaignId, ADMIN);
   if (campaign.status !== "CLOSED") return { error: "Seule une campagne fermée et non publiée peut être rouverte." };
 
   await db().$transaction(async (tx) => {

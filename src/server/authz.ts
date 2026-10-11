@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getAuth } from "@/lib/auth";
 import { db } from "@/lib/prisma";
+import type { OrgRole } from "@/generated/prisma/enums";
 
 export async function requireUser() {
   const session = await getAuth().api.getSession({ headers: await headers() });
@@ -26,7 +27,7 @@ export async function requireMembership() {
  * Isolation tenant : une campagne n'est lisible que par un membre de son
  * organisation. Hors tenant → 404 (aucune fuite d'existence).
  */
-export async function requireCampaign(campaignId: string) {
+export async function requireCampaign(campaignId: string, opts: { role?: OrgRole } = {}) {
   const ctx = await requireMembership();
   const isUuid = /^[0-9a-f-]{36}$/i.test(campaignId);
   const campaign = isUuid
@@ -35,5 +36,12 @@ export async function requireCampaign(campaignId: string) {
       })
     : null;
   if (!campaign) notFound();
+  if (opts.role && ctx.membership.role !== opts.role) throw new ForbiddenError();
   return { ...ctx, campaign };
+}
+
+export class ForbiddenError extends Error {
+  constructor() {
+    super("Action réservée à l'administrateur de l'organisation.");
+  }
 }
