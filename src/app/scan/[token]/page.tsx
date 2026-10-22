@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Brand } from "@/components/brand";
-import { Scanner, type ScanAnswer } from "@/components/scanner";
+import { Scanner, SheetDownload, type ScanAnswer } from "@/components/scanner";
 import { findParticipant } from "@/server/scanner";
 import { db } from "@/lib/prisma";
 
@@ -14,7 +14,12 @@ export default async function ScanPage({ params }: { params: Promise<{ token: st
   const { campaign } = participant;
 
   if (participant.status === "SUBMITTED") {
-    return <Message title="Merci, vos réponses ont été transmises.">Elles ne sont plus modifiables. Vous pouvez fermer cette page.</Message>;
+    return (
+      <Message title="Merci, vos réponses ont été transmises.">
+        Elles ne sont plus modifiables. Vous pouvez fermer cette page.
+        <SheetDownload token={token} />
+      </Message>
+    );
   }
   if (campaign.status === "DRAFT") {
     return <Message title="Cette campagne n'est pas encore ouverte.">Revenez sur ce lien lorsque l'organisation l'aura lancée.</Message>;
@@ -43,7 +48,7 @@ function Message({ title, children }: { title: string; children: React.ReactNode
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-12">
       <Brand small />
       <h1 className="mt-6 font-serif text-2xl">{title}</h1>
-      <p className="mt-2 text-muted">{children}</p>
+      <div className="mt-2 text-muted">{children}</div>
     </main>
   );
 }

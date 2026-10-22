@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Brand } from "./brand";
+import { PasswordInput } from "./password-input";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
@@ -53,8 +54,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         </div>
         <div>
           <label className="label" htmlFor="password">Mot de passe</label>
-          <input
-            className="input" id="password" name="password" type="password" required minLength={10}
+          <PasswordInput
+            id="password" name="password" required minLength={10}
             autoComplete={mode === "login" ? "current-password" : "new-password"}
           />
           {mode === "register" && <p className="mt-1 text-xs text-muted">10 caractères minimum.</p>}

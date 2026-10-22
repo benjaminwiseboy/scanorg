@@ -163,6 +163,7 @@ export function Scanner({
         <section className="mt-16 space-y-3">
           <h1 className="font-serif text-3xl">Merci pour votre contribution.</h1>
           <p className="text-muted">Vos réponses ont été transmises. Vous pouvez fermer cette page.</p>
+          <SheetDownload token={token} />
         </section>
       )}
     </main>
@@ -218,5 +219,20 @@ function Choice({ name, label, checked, wide, onChange }: { name: string; label:
       <input type="radio" name={name} className="sr-only" checked={checked} onChange={onChange} />
       {label}
     </label>
+  );
+}
+
+/** Lien de téléchargement de la fiche PDF (réponses déjà soumises). */
+export function SheetDownload({ token }: { token: string }) {
+  return (
+    <div className="pt-4">
+      <a href={`/api/v1/scan/${token}/sheet`} download className="btn-ghost">
+        <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" />
+        </svg>
+        Télécharger ma fiche (PDF)
+      </a>
+      <p className="mt-2 text-xs text-muted">Vos 42 réponses, pour garder une trace. Ce n'est pas un score.</p>
+    </div>
   );
 }
