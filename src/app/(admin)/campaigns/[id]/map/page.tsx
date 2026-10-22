@@ -27,11 +27,23 @@ export default async function MapPage({ params }: { params: Promise<{ id: string
     <div className="space-y-8">
       <div>
         <Link href={`/campaigns/${id}`} className="text-sm text-muted hover:text-ink">← {campaign.name}</Link>
-        <p className="eyebrow mt-4">Carte de Vitalité LF™</p>
-        <h1 className="mt-1 font-serif text-3xl">{campaign.name}</h1>
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">Carte de Vitalité LF™</p>
+            <h1 className="mt-1 font-serif text-3xl">{campaign.name}</h1>
+          </div>
+          {p.status === "PUBLISHED" && (
+            <a href={`/api/v1/campaigns/${id}/map/pdf`} download className="btn-ghost">
+              <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" />
+              </svg>
+              Télécharger la carte (PDF)
+            </a>
+          )}
+        </div>
         <p className="mt-2 text-sm text-muted">
           {p.participation.submitted} répondant(s) sur {p.participation.invited} lien(s) · participation {pct(p.participation.rate)} ·
-          calculé le {new Date(p.calculatedAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}
+          calculé le {new Date(p.calculatedAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" })} UTC
         </p>
       </div>
 

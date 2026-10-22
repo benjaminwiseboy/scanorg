@@ -2,9 +2,7 @@ import { db } from "@/lib/prisma";
 import { fail, requestId } from "@/server/api";
 import { findParticipant } from "@/server/scanner";
 import { buildScanSheet } from "@/server/scan-sheet";
-
-const slug = (s: string) =>
-  s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 60);
+import { slug } from "@/server/pdf";
 
 /** Fiche PDF des réponses du participant — disponible une fois les réponses soumises (immuables). */
 export async function GET(req: Request, ctx: { params: Promise<{ token: string }> }) {

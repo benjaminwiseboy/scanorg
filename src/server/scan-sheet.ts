@@ -1,5 +1,6 @@
 import "server-only";
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFPage } from "pdf-lib";
+import { A4, ACCENT, INK, LINE, M, MUTED, clean, footer, wrap } from "./pdf";
 import { DIMENSIONS, METHODOLOGY_CODE, PILLARS } from "@/engines/methodology/lf-eac-v1";
 
 // Fiche personnelle du participant : ses réponses, sans aucun score
@@ -10,41 +11,6 @@ export type SheetInput = {
   submittedAt: Date;
   questions: { number: number; dimension: string; text: string; answer: number | "NSP" | null }[];
 };
-
-const A4 = { w: 595.28, h: 841.89 };
-const M = 50; // marge
-const ACCENT = rgb(0.122, 0.306, 0.475); // #1f4e79
-const INK = rgb(0.1, 0.13, 0.19);
-const MUTED = rgb(0.36, 0.4, 0.46);
-const LINE = rgb(0.886, 0.875, 0.843);
-
-/** Les polices standard PDF sont en WinAnsi : on remplace tout caractère non encodable. */
-function clean(font: PDFFont, s: string) {
-  return [...s]
-    .map((ch) => {
-      try {
-        font.encodeText(ch);
-        return ch;
-      } catch {
-        return "?";
-      }
-    })
-    .join("");
-}
-
-function wrap(font: PDFFont, text: string, size: number, maxWidth: number) {
-  const lines: string[] = [];
-  let line = "";
-  for (const word of text.split(/\s+/)) {
-    const next = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(next, size) > maxWidth && line) {
-      lines.push(line);
-      line = word;
-    } else line = next;
-  }
-  if (line) lines.push(line);
-  return lines;
-}
 
 export async function buildScanSheet(input: SheetInput): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
@@ -132,13 +98,7 @@ export async function buildScanSheet(input: SheetInput): Promise<Uint8Array> {
     }
   }
 
-  // Pied de page numéroté
-  const pages = pdf.getPages();
-  pages.forEach((p, i) => {
-    p.drawText(clean(regular, `ScanORG™ · Document personnel · ${input.campaignName}`), { x: M, y: 28, size: 7.5, font: regular, color: MUTED });
-    const label = `${i + 1} / ${pages.length}`;
-    p.drawText(label, { x: A4.w - M - regular.widthOfTextAtSize(label, 7.5), y: 28, size: 7.5, font: regular, color: MUTED });
-  });
+  footer(pdf.getPages(), regular, `ScanORG™ · Document personnel · ${input.campaignName}`);
 
   return pdf.save();
 }
