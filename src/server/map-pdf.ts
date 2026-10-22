@@ -167,21 +167,8 @@ export async function buildMapPdf(input: MapPdfInput): Promise<Uint8Array> {
   }
   y -= 14;
 
-  // ─── Limites de lecture ───────────────────────────────────────────────
-  const limits = [...p.limitations, "Les configurations, Points de Tension et Leviers ne sont pas encore calculés dans ce pilote."];
-  const limitLines = limits.map((l) => wrap(regular, clean(regular, l), 8.5, W - 12));
-  ensure(18 + limitLines.flat().length * 13.5 + 24);
-  draw("Limites de lecture", M, y, 12, bold);
-  y -= 18;
-  for (const lines of limitLines) {
-    page.drawCircle({ x: M + 2, y: y + 3, size: 1.5, color: MUTED });
-    for (const l of lines) {
-      draw(l, M + 12, y, 8.5, regular, MUTED);
-      y -= 11.5;
-    }
-    y -= 2;
-  }
-  y -= 12;
+  // Pas de section « Limites de lecture » dans l'export (choix produit) ;
+  // elle reste affichée à l'écran.
   page.drawLine({ start: { x: M, y: y + 6 }, end: { x: A4.w - M, y: y + 6 }, thickness: 0.4, color: LINE });
   y -= 8;
   draw(
